@@ -19,6 +19,11 @@ cask "openwarp" do
 
   app "OpenWarp.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/OpenWarp.app"]
+  end
+
   zap trash: [
     "~/.warp",
     "~/Library/Application Support/dev.openwarp.OpenWarp",
