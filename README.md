@@ -1,11 +1,11 @@
-# Homebrew OpenWarp Tap
+# Homebrew Tap
 
-Homebrew tap for installing [OpenWarp](https://github.com/zerx-lab/warp), the open source build of Warp Terminal.
+Personal Homebrew tap for custom formulae and casks.
 
 ## Installation
 
 ```sh
-brew tap gaoyifan/openwarp
+brew tap gaoyifan/tap
 brew install --cask openwarp
 ```
 
