@@ -1,0 +1,95 @@
+name: Update OpenWarp Cask
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update cask from latest release
+        id: update-cask
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ruby <<'RUBY'
+          require "json"
+          require "net/http"
+          require "uri"
+
+          repo = "zerx-lab/warp"
+          cask_path = "Casks/openwarp.rb"
+          asset_name = "OpenWarp-arm64.dmg"
+
+          uri = URI("https://api.github.com/repos/#{repo}/releases/latest")
+          request = Net::HTTP::Get.new(uri)
+          request["Accept"] = "application/vnd.github+json"
+          request["Authorization"] = "Bearer #{ENV.fetch("GITHUB_TOKEN")}"
+          request["X-GitHub-Api-Version"] = "2022-11-28"
+
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
+
+          unless response.is_a?(Net::HTTPSuccess)
+            warn "GitHub API request failed: #{response.code} #{response.body}"
+            exit 1
+          end
+
+          release = JSON.parse(response.body)
+          version = release.fetch("tag_name").delete_prefix("v")
+          asset = release.fetch("assets").find { |candidate| candidate.fetch("name") == asset_name }
+
+          unless asset
+            warn "Could not find #{asset_name} in #{release.fetch("html_url")}"
+            exit 1
+          end
+
+          digest = asset.fetch("digest", "")
+          unless digest.start_with?("sha256:")
+            warn "Release asset is missing a sha256 digest: #{asset.inspect}"
+            exit 1
+          end
+
+          sha256 = digest.delete_prefix("sha256:")
+          content = File.read(cask_path)
+          updated = content
+            .sub(/version "[^"]+"/, %(version "#{version}"))
+            .sub(/sha256 "[a-fA-F0-9]+"/, %(sha256 "#{sha256}"))
+
+          if updated == content
+            File.open(ENV.fetch("GITHUB_OUTPUT"), "a") { |file| file.puts("changed=false") }
+            puts "OpenWarp cask is already at #{version}."
+            exit
+          end
+
+          File.write(cask_path, updated)
+          File.open(ENV.fetch("GITHUB_OUTPUT"), "a") do |file|
+            file.puts("changed=true")
+            file.puts("version=#{version}")
+          end
+
+          puts "Updated OpenWarp cask to #{version}."
+          RUBY
+
+      - name: Validate cask syntax
+        if: steps.update-cask.outputs.changed == 'true'
+        run: ruby -c Casks/openwarp.rb
+
+      - name: Commit and push update
+        if: steps.update-cask.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/openwarp.rb
+          git commit -m "Update OpenWarp to ${{ steps.update-cask.outputs.version }}"
+          git push
