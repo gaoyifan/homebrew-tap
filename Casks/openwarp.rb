@@ -1,6 +1,6 @@
 cask "openwarp" do
-  version "2026.05.08.preview"
-  sha256 "0781da30d3a657255690b6c730fecc8bcdb00cdb7f8dc63ac51e8271ea7ad59a"
+  version "2026.05.10.preview"
+  sha256 "3c7172e12aff48136b8ca146d7f8b6fcaf9179035ee9fae7a7a38c475aff85df"
 
   url "https://github.com/zerx-lab/warp/releases/download/v#{version}/OpenWarp-arm64.dmg"
   name "OpenWarp"
